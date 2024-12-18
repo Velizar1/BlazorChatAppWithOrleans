@@ -1,0 +1,48 @@
+﻿@page "/chatrooms"
+
+@using Blazored.LocalStorage
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService localStorage
+
+<h4>Welcome @Username</h4>
+<h3>Available Rooms</h3>
+
+@if (ErrorMessage != null)
+{
+    <p style="color: red">@ErrorMessage</p>
+}
+
+@if (ChatRoomsList == null)
+{
+    <p>Loading chat rooms...</p>
+}
+else
+{
+    <ul>
+        @foreach (var room in ChatRoomsList)
+        {
+            <li>
+                <span>@room</span>
+                <button>Join</button>
+            </li>
+        }
+    </ul>
+}
+
+<div>
+    <input type="text" @bind="NewRoomName" placeholder="New room name" />
+    <button >Create Room</button>
+</div>
+
+@code {
+  
+    public string? Username { get; set; }
+    private string NewRoomName = string.Empty;
+    private string? ErrorMessage;
+    private List<string> ChatRoomsList = null;
+    protected override async Task OnInitializedAsync()
+    {
+        Username = await localStorage.GetItemAsync<string>("Username");
+    }
+   
+}

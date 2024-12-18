@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Orleans.Silo": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
