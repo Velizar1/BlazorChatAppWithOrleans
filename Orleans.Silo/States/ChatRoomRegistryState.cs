@@ -4,6 +4,6 @@
     public class ChatRoomRegistryState
     {
         [Id(0)]
-        public Dictionary<Guid,string> ChatRooms { get; set; } = new ();
+        public Dictionary<string, string> ChatRooms { get; set; } = new ();
     }
 }

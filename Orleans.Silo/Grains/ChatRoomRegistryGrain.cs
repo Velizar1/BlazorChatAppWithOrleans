@@ -11,11 +11,11 @@ namespace Orleans.Silo.Grains
         {
             if (!State.ChatRooms.Values.Contains(roomName)) 
             {
-                var key = new Guid();
+                var key = Guid.NewGuid();
 
                 var chatRoomGrain = this.GrainFactory.GetGrain<IChatRoomGrain>(key);
                 
-                State.ChatRooms.Add(key, roomName);
+                State.ChatRooms.Add(key.ToString(), roomName);
                 await WriteStateAsync();
 
                 await chatRoomGrain.InitializeRoom(username, roomName);
@@ -26,11 +26,11 @@ namespace Orleans.Silo.Grains
             return null;
         }
 
-        public ValueTask<Guid> GetRoomIdByName(string roomName)
+        public ValueTask<string> GetRoomIdByName(string roomName)
         {
             return ValueTask.FromResult(State.ChatRooms
                     .FirstOrDefault(pair => pair.Value == roomName)
-                    .Key);
+                    .Key.ToString());
         }
 
         public ValueTask<List<string>> GetRooms()
@@ -46,11 +46,16 @@ namespace Orleans.Silo.Grains
                     .FirstOrDefault(pair => pair.Value == roomName)
                     .Key;
 
-                var chatRoomGrain = this.GrainFactory.GetGrain<IChatRoomGrain>(roomKey);
+                var chatRoomGrain = this.GrainFactory.GetGrain<IChatRoomGrain>(Guid.Parse(roomKey));
+                var users = await chatRoomGrain.GetUsers();
+                
+                if (!users.Contains(username))
+                {
+                    var isIserAdded = await chatRoomGrain.AddUserToChatRoom(username);
+                    return isIserAdded;
+                }
 
-                var isIserAdded = await chatRoomGrain.AddUserToChatRoom(username);
-
-                return isIserAdded;
+                return true;
             }
 
             return false;

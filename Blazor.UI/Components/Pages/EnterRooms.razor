@@ -1,0 +1,56 @@
+﻿@page "/"
+@using Blazored.LocalStorage
+@using Orleans.Interfaces.IGrains
+@inject NavigationManager NavigationManager
+@inject ILocalStorageService localStorage
+
+@inject IClusterClient clusterClient
+
+<h3>Login</h3>
+
+<div>
+    <label for="username">Username:</label>
+    <input type="text" @bind="Username" id="username" />
+    <button @onclick="Login">Login</button>
+</div>
+
+@if (ErrorMessage != null)
+{
+    <p style="color: red">@ErrorMessage</p>
+}
+
+@code {
+    private string Username = string.Empty;
+    private string? ErrorMessage;
+
+    private async Task Login()
+    {
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            ErrorMessage = "Username cannot be empty.";
+            return;
+        }
+
+        var userRegistry = clusterClient.GetGrain<IUserRegistryGrain>(0);
+        var isSucceeded = await userRegistry.RegisterUser(Username);
+
+        if (!isSucceeded)
+        {
+            ErrorMessage = "Username is already in use";
+            return;
+        }
+
+        var options = new CookieOptions
+            {
+                Expires = DateTime.Now.AddDays(1),
+                HttpOnly = false,
+                Secure = false
+            };
+
+        await localStorage.SetItemAsync("Username", Username);
+
+
+        // Navigate to chatrooms after login
+        NavigationManager.NavigateTo($"/chatrooms");
+    }
+ }

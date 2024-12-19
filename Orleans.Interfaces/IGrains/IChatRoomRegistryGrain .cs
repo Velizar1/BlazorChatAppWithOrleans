@@ -4,7 +4,7 @@
     {
         ValueTask<List<string>> GetRooms();
 
-        ValueTask<Guid> GetRoomIdByName(string roomName);
+        ValueTask<string> GetRoomIdByName(string roomName);
 
         Task<Guid?> AddRoom(string user, string roomName);
 

@@ -1,11 +1,11 @@
 ﻿@page "/room/{RoomName}/{RoomId}"
-@using Microsoft.AspNetCore.SignalR.Client
+
 @using Blazored.LocalStorage
 @using Orleans.Interfaces.IGrains
 @using Orleans.Interfaces.Models
+@using System.Globalization
 @inject NavigationManager NavigationManager
 @inject ILocalStorageService localStorage
-@inject HubConnection HubConnection
 @inject IClusterClient clusterClient
 
 <h3>Chat Room: @RoomName</h3>
@@ -15,29 +15,41 @@
     <p style="color: red">@ErrorMessage</p>
 }
 
-<ul>
-    @foreach (var message in Messages)
+<div >
+    @foreach (var user in Users)
     {
-        <p>Send at : @message.CreatedAt.ToString("dd.MM:hh.mm")</p>
-        <li>@message.Sender: @message.Message</li>
+        <div class="user">
+            <strong>@user</strong>
+        </div>
     }
-</ul>
-
-<div>
-    <textarea @bind="NewMessage"></textarea>
-    <button @onclick="SendMessage">Send</button>
-    <button @onclick="LoadOlderMessages">Load Older Messages</button>
 </div>
 
-<div>
-    <button style="color: red" @onclick="LeaveRoom">Leave Room</button>
-</div>
+<div class="chat-container">
+    <button class="load-older" @onclick="LoadOlderMessages">Load Older Messages</button>
+    <div class="chat-messages">
+        @foreach (var message in Messages)
+        {
+            <div class="message">
+                <span class="timestamp">@message.CreatedAt.ToString("dd.MM | HH:mm", CultureInfo.InvariantCulture)</span>
+                <strong class="username">@message.Sender:</strong> @message.Message
+            </div>
+        }
+    </div>
+    <div class="chat-input">
+        <input @bind="NewMessage" placeholder="Type your message..." />
+        <button @onclick="SendMessage">Send</button>
+    </div>
 
+    <div>
+        <button style="color: red" @onclick="LeaveRoom">Leave Room</button>
+    </div>
+</div>
 @code {
     [Parameter] public string RoomName { get; set; } = default!;
-    [Parameter] public Guid? RoomId { get; set; } = default;
+    [Parameter] public string RoomId { get; set; } = default;
+    //private HubConnection? hubConnection;
     private List<ChatMessage> Messages = new();
-    private List<string> Users = new();
+    private HashSet<string> Users = new();
     private string NewMessage = string.Empty;
     private string? ErrorMessage;
     private int MessageCount = 30;
@@ -45,6 +57,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // hubConnection = new HubConnectionBuilder()
+        //         .WithUrl(NavigationManager.ToAbsoluteUri("/chatHub")) Path to your SignalR hub
+        //         .Build();
+
         Username = await localStorage.GetItemAsync<string>("Username");
 
         if (string.IsNullOrWhiteSpace(Username) || RoomId == null)
@@ -52,25 +68,27 @@
             NavigationManager.NavigateTo($"/");
         }
 
-        if (HubConnection.State == HubConnectionState.Disconnected)
-        {
+        // if (hubConnection.State == HubConnectionState.Disconnected)
+        // {
 
-            HubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
-            {
-                Messages.Add(message);
-                StateHasChanged();
-            });
+        //     hubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
+        //     {
+        //         Messages.Add(message);
+        //         StateHasChanged();
+        //     });
 
-            await HubConnection.StartAsync();
+        //     await hubConnection.StartAsync();
 
-            Messages = await HubConnection.InvokeAsync<List<ChatMessage>>("GeRoomMessages", RoomName, MessageCount);
-            Users = await HubConnection.InvokeAsync<List<string>>("GetChatUsers", RoomName);
-        }
+
+        // }
+        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
+        Messages = await chatRoom.GetMessages();
+        Users = await chatRoom.GetUsers();
     }
 
     private async Task LoadOlderMessages()
     {
-        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>((Guid)RoomId!);
+        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
         var olderMessages = await chatRoom.LoadOlderMessages(MessageCount, 50);
         MessageCount += 50;
 
@@ -84,14 +102,25 @@
         {
             return;
         }
+        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
 
-        await HubConnection!.SendAsync("SendMessage", RoomId, RoomName, Username, NewMessage);
+        var chatMessage = new ChatMessage
+            {
+                CreatedAt = DateTime.Now,
+                Message = NewMessage,
+                Sender = Username,
+            };
+
+        var isSent = await chatRoom.SendMessage(chatMessage);
+        Messages.Add(chatMessage);
+        StateHasChanged();
+        //await hubConnection!.SendAsync("SendMessage", RoomId, RoomName, Username, NewMessage);
         NewMessage = string.Empty;
     }
 
     public async Task LeaveRoom(MouseEventArgs e)
     {
-        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>((Guid)RoomId!);
+        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
         var isRemoved = await chatRoom.RemoveUserFromChatRoom(Username);
 
         if (!isRemoved)
@@ -103,7 +132,7 @@
         Users.Remove(Username);
         Username = string.Empty;
 
-        await HubConnection!.SendAsync("RemoveUserFromRoom", RoomName, Username);
+        //await hubConnection!.SendAsync("RemoveUserFromRoom", RoomName, Username);
         NavigationManager.NavigateTo($"/chatrooms");
     }
 }

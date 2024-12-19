@@ -1,6 +1,7 @@
 ﻿@page "/chatrooms"
 
 @using Blazored.LocalStorage
+@using Microsoft.AspNetCore.SignalR.Client
 @using Orleans.Interfaces.IGrains
 @inject NavigationManager NavigationManager
 @inject ILocalStorageService localStorage
@@ -38,6 +39,7 @@ else
 </div>
 
 @code {
+    private HubConnection? hubConnection;
     public string? Username { get; set; }
     private string NewRoomName = string.Empty;
     private string? ErrorMessage;
@@ -45,19 +47,19 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // hubConnection = new HubConnectionBuilder()
-        //         .WithUrl(NavigationManager.ToAbsoluteUri("/chatHub")) Path to your SignalR hub
-        //         .Build();
+        hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/chatHub")) // Path to your SignalR hub
+                .Build();
 
-        // hubConnection.On<string>("ReceiveRoom", (roomName) =>
-        // {
-        //     ChatRoomsList.Add(NewRoomName);
-        //     StateHasChanged();
-        // });
+        hubConnection.On<string>("ReceiveRoom", (roomName) =>
+        {
+            ChatRoomsList.Add(NewRoomName);
+            StateHasChanged();
+        });
 
-        // await hubConnection.StartAsync();
+        await hubConnection.StartAsync();
 
-        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(1);
+        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(0);
         ChatRoomsList = await chatRoomRegistry.GetRooms();
 
         Username = await localStorage.GetItemAsync<string>("Username");
@@ -66,7 +68,7 @@ else
     private async Task CreateRoom()
     {
 
-        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(1);
+        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(0);
         var roomId = await chatRoomRegistry.AddRoom(Username, NewRoomName);
 
         if (roomId == null)
@@ -75,13 +77,13 @@ else
             return;
         }
 
-        //await hubConnection.SendAsync("ReceiveRoom", NewRoomName);
-        NavigationManager.NavigateTo($"/room/{NewRoomName}/{roomId.ToString()}");
+        await hubConnection.SendAsync("ReceiveRoom", NewRoomName);
+        NavigationManager.NavigateTo($"/room/{NewRoomName}/{(Guid)roomId}");
     }
 
     private async Task JoinRoom(string roomName)
     {
-        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(1);
+        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(0);
         var isSucceeded = await chatRoomRegistry.JoinChat(Username, roomName);
 
         if (!isSucceeded)
@@ -97,9 +99,9 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        // if (hubConnection is not null)
-        // {
-        //     await hubConnection.DisposeAsync();
-        // }
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

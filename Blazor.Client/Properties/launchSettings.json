@@ -24,7 +24,7 @@
         "ASPNETCORE_URLS": "http://+:80"
       },
       "publishAllPorts": true,
-      "useSSL": false
+      "useSSL": true
     }
   },
   "iisSettings": {
@@ -32,7 +32,7 @@
     "anonymousAuthentication": true,
     "iisExpress": {
       "applicationUrl": "http://localhost:6796",
-      "sslPort": 0
+      "sslPort": 44338
     }
   }
 }
