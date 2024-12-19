@@ -1,4 +1,7 @@
+using Blazor.Client.Hubs;
 using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.SignalR.Client;
 using Orleans.Configuration;
 
 namespace Blazor.Client
@@ -26,6 +29,15 @@ namespace Blazor.Client
                 });
             });
 
+            builder.Services.AddSingleton(sp =>
+            {
+                var navigationManager = sp.GetRequiredService<NavigationManager>();
+                return new HubConnectionBuilder()
+                    .WithUrl(navigationManager.ToAbsoluteUri("/chathub"))
+                    .WithAutomaticReconnect()
+                    .Build();
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -34,6 +46,7 @@ namespace Blazor.Client
                 app.UseExceptionHandler("/Error");
             }
 
+            app.MapHub<ChatHub>("/chathub");
 
             app.UseStaticFiles();
 
@@ -41,7 +54,6 @@ namespace Blazor.Client
 
             app.MapBlazorHub();
             app.MapFallbackToPage("/_Host");
-
             app.Run();
         }
     }

@@ -2,8 +2,12 @@
 {
     public interface IChatRoomRegistryGrain : IGrainWithIntegerKey
     {
-        Task<List<string>> GetRooms();
+        ValueTask<List<string>> GetRooms();
 
-        Task<bool> AddRoom(string user, string roomName);
+        ValueTask<Guid> GetRoomIdByName(string roomName);
+
+        Task<Guid?> AddRoom(string user, string roomName);
+
+        Task<bool> JoinChat(string username, string roomName);
     }
 }

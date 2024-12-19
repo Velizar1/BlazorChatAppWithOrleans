@@ -1,8 +1,13 @@
 ﻿@page "/chatrooms"
 
 @using Blazored.LocalStorage
+@using Microsoft.AspNetCore.SignalR.Client
+@using Orleans.Interfaces.IGrains
 @inject NavigationManager NavigationManager
+@inject HubConnection HubConnection
 @inject ILocalStorageService localStorage
+
+@inject IClusterClient clusterClient
 
 <h4>Welcome @Username</h4>
 <h3>Available Rooms</h3>
@@ -23,7 +28,7 @@ else
         {
             <li>
                 <span>@room</span>
-                <button>Join</button>
+                <button @onclick="() => JoinRoom(room)">Join</button>
             </li>
         }
     </ul>
@@ -31,18 +36,64 @@ else
 
 <div>
     <input type="text" @bind="NewRoomName" placeholder="New room name" />
-    <button >Create Room</button>
+    <button @onclick="CreateRoom" >Create Room</button>
 </div>
 
 @code {
-  
+
     public string? Username { get; set; }
     private string NewRoomName = string.Empty;
     private string? ErrorMessage;
     private List<string> ChatRoomsList = null;
+
     protected override async Task OnInitializedAsync()
     {
+        if (HubConnection.State == HubConnectionState.Disconnected)
+        {
+
+            HubConnection.On<string>("ReceiveRoom", (roomName) =>
+            {
+                ChatRoomsList.Add(NewRoomName);
+                StateHasChanged();
+            });
+
+            await HubConnection.StartAsync();
+        }
+
+        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(0);
+        ChatRoomsList = await chatRoomRegistry.GetRooms();
+
         Username = await localStorage.GetItemAsync<string>("Username");
+    }
+
+    private async Task CreateRoom(){
+
+        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(0);
+        var roomId = await chatRoomRegistry.AddRoom(Username, NewRoomName);
+        
+        if(roomId == null)
+        {
+            ErrorMessage = $"Room with name {NewRoomName} already exists.";
+            return;
+        }
+
+        await HubConnection.SendAsync("ReceiveRoom", NewRoomName);
+        NavigationManager.NavigateTo($"/room/{NewRoomName}/{(Guid)roomId}");
+    }
+
+    private async Task JoinRoom(string roomName)
+    {
+        var chatRoomRegistry = clusterClient.GetGrain<IChatRoomRegistryGrain>(0);
+        var isSucceeded = await chatRoomRegistry.JoinChat(Username, roomName);
+
+        if(!isSucceeded){
+            ErrorMessage = $"Coudnt join chat room {roomName}";
+            return;
+        }
+
+        var roomId = await chatRoomRegistry.GetRoomIdByName(roomName);
+
+        NavigationManager.NavigateTo($"/room/{roomName}/{roomId}");
     }
    
 }

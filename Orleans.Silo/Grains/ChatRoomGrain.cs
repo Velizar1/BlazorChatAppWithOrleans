@@ -58,8 +58,8 @@ namespace Orleans.Silo.Grains
 
         public async Task<bool> RemoveUserFromChatRoom(string username)
         {
-            var isUserPersist = State.Usernames.Contains(username);
-            if (isUserPersist)
+            var isUserStored = State.Usernames.Contains(username);
+            if (isUserStored)
             {
                 State.Usernames.Remove(username);
                 await WriteStateAsync();
