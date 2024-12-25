@@ -15,7 +15,7 @@ namespace Blazor.Client
             builder.Services.AddServerSideBlazor();
             builder.Services.AddBlazoredLocalStorage();
             builder.Services.AddSignalR();
-
+            
             builder.Host.UseOrleansClient((context, client) =>
             {
                 var configuration = builder.Configuration;
@@ -36,7 +36,6 @@ namespace Blazor.Client
                 app.UseExceptionHandler("/Error");
             }
             app.UseHttpsRedirection();
-            app.MapHub<ChatHub>("/chathub");
 
             app.UseStaticFiles();
 
@@ -44,6 +43,8 @@ namespace Blazor.Client
 
             app.MapBlazorHub();
             app.MapFallbackToPage("/_Host");
+            app.MapHub<ChatHub>("/chathub");
+
             app.Run();
         }
     }

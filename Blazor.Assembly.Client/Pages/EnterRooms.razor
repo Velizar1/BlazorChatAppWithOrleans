@@ -1,0 +1,66 @@
+﻿@page "/"
+<PageTitle>Login</PageTitle>
+
+@using Blazor.Assembly.Client.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Http;
+@inject NavigationManager NavigationManager
+@inject HubConnection HubConnection
+@inject SessionStorageService SessionStorageService
+
+<h3>Login</h3>
+
+<div>
+    <label for="username">Username:</label>
+    <input type="text" @bind="Username" id="username" />
+    <button @onclick="Login">Login</button>
+</div>
+
+@if (ErrorMessage != null)
+{
+    <p style="color: red">@ErrorMessage</p>
+}
+
+@code {
+    private string Username = string.Empty;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            if (HubConnection.State == HubConnectionState.Disconnected)
+            {
+                await HubConnection.StartAsync();
+                Console.WriteLine("SignalR connection started successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting SignalR connection: {ex.Message}");
+        }
+    }
+
+    private async Task Login()
+    {
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            ErrorMessage = "Username cannot be empty.";
+            return;
+        }
+        bool isSucceeded = false;
+
+        isSucceeded = await HubConnection.InvokeAsync<bool>("RegisterUser", Username);
+
+        if (!isSucceeded)
+        {
+            ErrorMessage = "Username is already in use";
+            return;
+        }
+
+        await SessionStorageService.SetItem("Username", Username);
+
+        // Navigate to chatrooms after login
+        NavigationManager.NavigateTo($"/chatrooms");
+    }
+}

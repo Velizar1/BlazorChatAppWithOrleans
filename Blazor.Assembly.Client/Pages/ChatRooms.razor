@@ -1,0 +1,107 @@
+﻿@page "/chatrooms"
+<PageTitle>Chat Rooms</PageTitle>
+
+@using Blazor.Assembly.Client.Services
+@using Microsoft.AspNetCore.SignalR.Client
+@using Orleans.Interfaces.IGrains
+@inject NavigationManager NavigationManager
+@inject HubConnection HubConnection
+@inject SessionStorageService SessionStorageService
+
+<h4>Welcome @Username</h4>
+<h3>Available Rooms</h3>
+
+@if (ErrorMessage != null)
+{
+    <p style="color: red">@ErrorMessage</p>
+}
+
+@if (ChatRoomsList == null)
+{
+    <p>Loading chat rooms...</p>
+}
+else
+{
+    <ul>
+        @foreach (var room in ChatRoomsList)
+        {
+            <li>
+                <span>@room</span>
+                <button @onclick="() => JoinRoom(room)">Join</button>
+            </li>
+        }
+    </ul>
+}
+
+<div>
+    <input type="text" @bind="NewRoomName" placeholder="New room name" />
+    <button @onclick="CreateRoom">Create Room</button>
+</div>
+
+@code {
+    public string? Username { get; set; }
+    private string NewRoomName = string.Empty;
+    private string? ErrorMessage = string.Empty;
+    private List<string> ChatRoomsList = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Username = await SessionStorageService.GetItem("Username");
+        
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            NavigationManager.NavigateTo($"/");
+        }
+
+        HubConnection.On<string>("ReceiveRoom", (roomName) =>
+        {
+            ChatRoomsList.Add(roomName);
+            StateHasChanged();
+        });
+
+        try
+        {
+            if (HubConnection.State == HubConnectionState.Disconnected)
+            {
+                await HubConnection.StartAsync();
+                Console.WriteLine("SignalR connection started successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting SignalR connection: {ex.Message}");
+        }
+
+        ChatRoomsList = await HubConnection.InvokeAsync<List<string>>("GetRooms");
+    }
+
+    private async Task CreateRoom()
+    {
+        ErrorMessage = string.Empty;
+
+        var roomId = await HubConnection.InvokeAsync<Guid?>("CreateRoom", NewRoomName, Username);
+
+        if (roomId == null)
+        {
+            ErrorMessage = $"Room with name {NewRoomName} already exists.";
+            return;
+        }
+
+        NavigationManager.NavigateTo($"/room/{NewRoomName}/{roomId.ToString()}");
+    }
+
+    private async Task JoinRoom(string roomName)
+    {
+        ErrorMessage = string.Empty;
+
+        var roomId = await HubConnection.InvokeAsync<string>("JoinRoom", roomName, Username);
+
+        if (string.IsNullOrWhiteSpace(roomId))
+        {
+            ErrorMessage = $"Coudnt join chat room {roomName}";
+            return;
+        }
+
+        NavigationManager.NavigateTo($"/room/{roomName}/{roomId}");
+    }
+}

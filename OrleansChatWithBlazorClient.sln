@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orleans.Silo", "Orleans.Sil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Orleans.Interfaces", "Orleans.Interfaces\Orleans.Interfaces.csproj", "{C1BBD026-9152-493B-889B-F721553AC60B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blazor.Assembly.Client", "Blazor.Assembly.Client\Blazor.Assembly.Client.csproj", "{42934F3D-34D4-42B4-AC35-6C0E68472B60}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{C1BBD026-9152-493B-889B-F721553AC60B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C1BBD026-9152-493B-889B-F721553AC60B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C1BBD026-9152-493B-889B-F721553AC60B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{42934F3D-34D4-42B4-AC35-6C0E68472B60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42934F3D-34D4-42B4-AC35-6C0E68472B60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42934F3D-34D4-42B4-AC35-6C0E68472B60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42934F3D-34D4-42B4-AC35-6C0E68472B60}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

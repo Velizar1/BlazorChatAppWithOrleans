@@ -17,5 +17,6 @@ namespace Orleans.Interfaces.IGrains
         Task<List<ChatMessage>> GetMessages(int count = 30);
 
         Task<List<ChatMessage>> LoadOlderMessages(int skip, int take);
+        Task<string> GetRoomName();
     }
 }

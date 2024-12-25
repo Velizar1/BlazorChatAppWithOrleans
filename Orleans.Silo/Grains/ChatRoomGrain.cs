@@ -24,6 +24,7 @@ namespace Orleans.Silo.Grains
             return Task.FromResult(State.Messages
                .OrderByDescending(m => m.CreatedAt)
                .Take(count)
+               .Reverse()
                .ToList());
         }
 
@@ -53,6 +54,7 @@ namespace Orleans.Silo.Grains
                 .OrderByDescending(m => m.CreatedAt)
                 .Skip(skip)
                 .Take(take)
+                .Reverse()
                 .ToList());
         }
 
@@ -83,5 +85,9 @@ namespace Orleans.Silo.Grains
             return true;
         }
 
+        public Task<string> GetRoomName()
+        {
+            return Task.FromResult(State.CharRoomName);
+        }
     }
 }

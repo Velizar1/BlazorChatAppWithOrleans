@@ -1,13 +1,14 @@
 ﻿@page "/room/{RoomName}/{RoomId}"
 
-@using Blazored.LocalStorage
+<PageTitle>Room</PageTitle>
+
+@using Blazor.Assembly.Client.Services
 @using Microsoft.AspNetCore.SignalR.Client
-@using Orleans.Interfaces.IGrains
 @using Orleans.Interfaces.Models
 @using System.Globalization
 @inject NavigationManager NavigationManager
-@inject ILocalStorageService localStorage
-@inject IClusterClient clusterClient
+@inject HubConnection HubConnection
+@inject SessionStorageService SessionStorageService
 
 <h3>Chat Room: @RoomName</h3>
 
@@ -16,10 +17,11 @@
     <p style="color: red">@ErrorMessage</p>
 }
 
-<div >
+<div style="position: absolute">
+    <h4>Chat Users :</h4>
     @foreach (var user in Users)
     {
-        <div class="user">
+        <div>
             <strong>@user</strong>
         </div>
     }
@@ -48,7 +50,6 @@
 @code {
     [Parameter] public string RoomName { get; set; } = default!;
     [Parameter] public string RoomId { get; set; } = default;
-    private HubConnection? hubConnection;
     private List<ChatMessage> Messages = new();
     private HashSet<string> Users = new();
     private string NewMessage = string.Empty;
@@ -58,39 +59,38 @@
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5038//chatHub")
-                .Build();
 
-        Username = await localStorage.GetItemAsync<string>("Username");
+        Username = await SessionStorageService.GetItem("Username");
 
-        if (string.IsNullOrWhiteSpace(Username) || RoomId == null)
+        if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(RoomId))
         {
             NavigationManager.NavigateTo($"/");
         }
 
-        if (hubConnection.State == HubConnectionState.Disconnected)
+        HubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
         {
+            Messages.Add(message);
+            StateHasChanged();
+        });
 
-            hubConnection.On<ChatMessage>("ReceiveMessage", (message) =>
-            {
-                Messages.Add(message);
-                StateHasChanged();
-            });
-
-            await hubConnection.StartAsync();
-
-
+        if (HubConnection.State == HubConnectionState.Disconnected)
+        {
+            await HubConnection.StartAsync();
         }
-        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
-        Messages = await chatRoom.GetMessages();
-        Users = await chatRoom.GetUsers();
+
+        Messages = await HubConnection.InvokeAsync<List<ChatMessage>>("GetRoomMessages", RoomId);
+        Users = await HubConnection.InvokeAsync<HashSet<string>>("GetRoomUsers", RoomId);
+
+        if (!Users.Contains(Username))
+        {
+            NavigationManager.NavigateTo($"/chatrooms");
+        }
     }
 
     private async Task LoadOlderMessages()
     {
-        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
-        var olderMessages = await chatRoom.LoadOlderMessages(MessageCount, 50);
+
+        var olderMessages = await HubConnection.InvokeAsync<List<ChatMessage>>("LoadOlderMessages", RoomId, MessageCount, 50);
         MessageCount += 50;
 
         Messages.InsertRange(0, olderMessages);
@@ -103,26 +103,17 @@
         {
             return;
         }
-        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
 
-        var chatMessage = new ChatMessage
-            {
-                CreatedAt = DateTime.Now,
-                Message = NewMessage,
-                Sender = Username,
-            };
+        await HubConnection.SendAsync("SendMessage", RoomId, Username, NewMessage);
 
-        var isSent = await chatRoom.SendMessage(chatMessage);
-        Messages.Add(chatMessage);
-        StateHasChanged();
-        await hubConnection!.SendAsync("SendMessage", RoomId, RoomName, Username, NewMessage);
         NewMessage = string.Empty;
     }
 
     public async Task LeaveRoom(MouseEventArgs e)
     {
-        var chatRoom = clusterClient.GetGrain<IChatRoomGrain>(Guid.Parse(RoomId));
-        var isRemoved = await chatRoom.RemoveUserFromChatRoom(Username);
+        ErrorMessage = string.Empty;
+
+        var isRemoved = await HubConnection.InvokeAsync<bool>("RemoveUserFromRoom", RoomId, Username);
 
         if (!isRemoved)
         {
@@ -132,8 +123,8 @@
 
         Users.Remove(Username);
         Username = string.Empty;
+        MessageCount = 30;
 
-        await hubConnection!.SendAsync("RemoveUserFromRoom", RoomName, Username);
         NavigationManager.NavigateTo($"/chatrooms");
     }
 }
