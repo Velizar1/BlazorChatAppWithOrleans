@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.JSInterop;
 
 namespace Blazor.Assembly.Client
 {
@@ -15,22 +16,11 @@ namespace Blazor.Assembly.Client
             builder.RootComponents.Add<App>("#app");
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
-            builder.Services.AddScoped<SessionStorageService>();
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+            builder.Services.AddScoped<SessionStorageService>();
 
 
-            builder.Services.AddSingleton(sp =>
-            {
-                var hubConnection = new HubConnectionBuilder()
-                    .WithUrl("https://localhost:5001/chathub", options =>
-                    {
-                        options.Transports = HttpTransportType.LongPolling ; // Allow multiple transports
-                    })
-                    .WithAutomaticReconnect()
-                    .Build();
-
-                return hubConnection;
-            });
+            builder.Services.AddScoped<HubConnectionFactoryService>();
 
             await builder.Build().RunAsync();
         }

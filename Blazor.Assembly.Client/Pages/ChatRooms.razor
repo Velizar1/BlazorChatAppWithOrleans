@@ -5,8 +5,8 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using Orleans.Interfaces.IGrains
 @inject NavigationManager NavigationManager
-@inject HubConnection HubConnection
 @inject SessionStorageService SessionStorageService
+@inject HubConnectionFactoryService HubConnectionFactoryService
 
 <h4>Welcome @Username</h4>
 <h3>Available Rooms</h3>
@@ -39,19 +39,22 @@ else
 </div>
 
 @code {
+    private List<string> ChatRoomsList = null;
+    private HubConnection? HubConnection;
     public string? Username { get; set; }
     private string NewRoomName = string.Empty;
     private string? ErrorMessage = string.Empty;
-    private List<string> ChatRoomsList = null;
 
     protected override async Task OnInitializedAsync()
     {
-        Username = await SessionStorageService.GetItem("Username");
+        Username = await SessionStorageService.GetItemAsync("Username");
         
         if (string.IsNullOrWhiteSpace(Username))
         {
             NavigationManager.NavigateTo($"/");
         }
+
+        HubConnection = await HubConnectionFactoryService.CreateAsync(Username);
 
         HubConnection.On<string>("ReceiveRoom", (roomName) =>
         {
@@ -87,7 +90,15 @@ else
             return;
         }
 
-        NavigationManager.NavigateTo($"/room/{NewRoomName}/{roomId.ToString()}");
+        var stringRoomId = await HubConnection.InvokeAsync<string>("JoinRoom", NewRoomName, Username);
+
+        if (string.IsNullOrWhiteSpace(stringRoomId))
+        {
+            ErrorMessage = $"Coudnt join chat room {NewRoomName}";
+            return;
+        }
+
+        NavigationManager.NavigateTo($"/room/{NewRoomName}/{stringRoomId}");
     }
 
     private async Task JoinRoom(string roomName)

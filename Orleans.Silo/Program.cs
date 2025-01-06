@@ -23,7 +23,7 @@ namespace Orleans.Silo
                 siloBuilder.AddAdoNetGrainStorage("Default", options =>
                     {
                         options.Invariant = "System.Data.SqlClient";
-                        options.ConnectionString = "Server=DESKTOP-1K56OA7;Database=SiloChat;Trusted_Connection=true;TrustServerCertificate=true;MultipleActiveResultSets=true;";
+                        options.ConnectionString = "Server=.;Database=SiloChat;Trusted_Connection=true;TrustServerCertificate=true;MultipleActiveResultSets=true;";
                     });
 
                 siloBuilder.UseLocalhostClustering()
@@ -47,7 +47,7 @@ namespace Orleans.Silo
             {
                 options.AddPolicy("AllowSpecificOrigin", policy =>
                 {
-                    policy.WithOrigins("https://localhost:44325")
+                    policy.WithOrigins("https://localhost:7048")
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           .AllowCredentials();
@@ -63,14 +63,13 @@ namespace Orleans.Silo
             });
 
             var app = builder.Build();
-
             app.UseHttpsRedirection();
 
             app.UseCors("AllowSpecificOrigin");
 
             app.MapHub<ChatHub>("/chathub");
 
-            await app.RunAsync("https://localhost:5001");
+            await app.RunAsync();
 
             Console.WriteLine("Silo server has started");
             Console.ReadLine();

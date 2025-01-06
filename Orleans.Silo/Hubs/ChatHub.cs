@@ -1,13 +1,12 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Orleans.Interfaces.IGrains;
 using Orleans.Interfaces.Models;
-
 namespace Orleans.Silo.Hubs
 {
     public class ChatHub : Hub
     {
         private readonly IGrainFactory _grainFactory;
-        protected IHubContext _context;
+
         public ChatHub(IGrainFactory grainFactory)
         {
             _grainFactory = grainFactory;
@@ -61,30 +60,19 @@ namespace Orleans.Silo.Hubs
             };
 
             var roomId = await chatRoomRegistry.GetRoomIdByName(roomName);
+
             await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
             await Clients.Group(roomName).SendAsync("ReceiveMessage", chatMessage);
 
             return roomId;
         }
 
-        //public async Task AddUserToRoom(string roomname, string userName)
-        //{
-        //    var chatMessage = new ChatMessage
-        //    {
-        //        CreatedAt = DateTime.Now,
-        //        Message = $"{userName} has joined",
-        //        Sender = roomname,
-        //    };
-
-        //    await Groups.AddToGroupAsync(Context.ConnectionId, roomname);
-        //    await Clients.Group(roomname).SendAsync("ReceiveMessage", chatMessage);
-        //}
-
         public async Task<bool> RemoveUserFromRoom(string roomId, string username)
         {
             var chatRoom = _grainFactory.GetGrain<IChatRoomGrain>(Guid.Parse(roomId));
+            // Check if user is successfully removed from the chat grain state
             var isRemoved = await chatRoom.RemoveUserFromChatRoom(username);
-
+            
             if (!isRemoved)
             {
                 return false;
@@ -147,6 +135,30 @@ namespace Orleans.Silo.Hubs
             var chatRoomMessages = await chatRoom.LoadOlderMessages(skip, take);
 
             return chatRoomMessages;
+        }
+
+        public override async Task OnConnectedAsync()
+        {
+            var roomname = Context.GetHttpContext()?.Request.Query["roomname"];
+
+            if (!string.IsNullOrEmpty(roomname))
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, roomname);
+            }
+
+            await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            var roomname = Context.GetHttpContext()?.Request.Query["roomname"];
+
+            if (!string.IsNullOrEmpty(roomname))
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomname);
+            }
+
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

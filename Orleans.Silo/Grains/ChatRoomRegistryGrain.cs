@@ -9,7 +9,7 @@ namespace Orleans.Silo.Grains
 
         public async Task<Guid?> AddRoom(string username, string roomName)
         {
-            if (!State.ChatRooms.Values.Contains(roomName)) 
+            if (!string.IsNullOrWhiteSpace(username) || !State.ChatRooms.Values.Contains(roomName) ) 
             {
                 var key = Guid.NewGuid();
 
@@ -51,8 +51,8 @@ namespace Orleans.Silo.Grains
                 
                 if (!users.Contains(username))
                 {
-                    var isIserAdded = await chatRoomGrain.AddUserToChatRoom(username);
-                    return isIserAdded;
+                    var isUserAdded = await chatRoomGrain.AddUserToChatRoom(username);
+                    return isUserAdded;
                 }
 
                 return true;
